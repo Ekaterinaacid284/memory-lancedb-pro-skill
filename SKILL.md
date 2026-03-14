@@ -49,16 +49,21 @@ Present these three plans in a clear comparison, then ask the user to pick one:
 - Best for: Users who already have OpenAI and want minimal setup
 
 **Plan D — 🖥️ Fully Local (Ollama, No API Keys)**
-- Embedding: Ollama `nomic-embed-text` (768-dim, local at `http://localhost:11434/v1`)
+- Embedding: Ollama `mxbai-embed-large` (1024-dim, recommended) or `nomic-embed-text:v1.5` (768-dim, lighter)
 - Reranker: **None** — Ollama has no cross-encoder reranker; retrieval uses vector+BM25 fusion only
-- LLM: Ollama via OpenAI-compatible endpoint — recommended models with reliable JSON output: `qwen2.5:7b`, `llama3.2`, `mistral`
+- LLM: Ollama via OpenAI-compatible endpoint — recommended models with reliable JSON/structured output:
+  - `qwen3:8b` (**recommended** — best JSON output, native structured output, ~5.2GB)
+  - `qwen3:14b` (better quality, ~9GB, needs 16GB VRAM)
+  - `llama4:scout` (multimodal MoE, 10M ctx, ~12GB)
+  - `mistral-small3.2` (24B, 128K ctx, excellent instruction following, ~15GB)
+  - `mistral-nemo` (12B, 128K ctx, efficient, ~7GB)
 - Keys needed: **None** — fully local, no external API calls
 - Prerequisites:
   - Ollama installed: https://ollama.com/download
-  - Models pulled (see Step 4 below)
+  - Models pulled (see Step 5 below)
   - Ollama running: macOS = launch the app from Applications; Linux = `systemctl start ollama` or `ollama serve`
 - Cost: Free (hardware only)
-- RAM requirements: nomic-embed-text ~270MB; qwen2.5:7b ~4.7GB; llama3.2 ~2GB
+- RAM requirements: mxbai-embed-large ~670MB; qwen3:8b ~5.2GB; qwen3:14b ~9GB; llama4:scout ~12GB; mistral-small3.2 ~15GB
 - Trade-offs: No cross-encoder reranking = lower retrieval precision than Plans A/B; Smart Extraction quality depends on local LLM — if extraction produces garbage, set `"smartExtraction": false`
 - Best for: Privacy-sensitive deployments, air-gapped environments, zero API cost
 
@@ -261,14 +266,14 @@ Use the config block for the chosen plan. Substitute actual API keys inline if t
 }
 ```
 
-**Plan D config (replace `qwen2.5:7b` with your preferred local LLM):**
+**Plan D config (replace models as needed — `qwen3:8b` recommended for LLM, `mxbai-embed-large` for embedding):**
 ```json
 {
   "embedding": {
     "apiKey": "ollama",
-    "model": "nomic-embed-text",
+    "model": "mxbai-embed-large",
     "baseURL": "http://localhost:11434/v1",
-    "dimensions": 768
+    "dimensions": 1024
   },
   "autoCapture": true,
   "autoRecall": true,
@@ -278,7 +283,7 @@ Use the config block for the chosen plan. Substitute actual API keys inline if t
   "extractMaxChars": 4000,
   "llm": {
     "apiKey": "ollama",
-    "model": "qwen2.5:7b",
+    "model": "qwen3:8b",
     "baseURL": "http://localhost:11434/v1"
   },
   "retrieval": {
@@ -289,7 +294,7 @@ Use the config block for the chosen plan. Substitute actual API keys inline if t
     "minScore": 0.25,
     "hardMinScore": 0.28
   },
-  "sessionMemory": { "enabled": false }
+  "sessionStrategy": "none"
 }
 ```
 
@@ -298,25 +303,29 @@ Use the config block for the chosen plan. Substitute actual API keys inline if t
 # 1. Verify Ollama is running (should return JSON with model list)
 curl http://localhost:11434/api/tags
 
-# 2. Pull embedding model
-ollama pull nomic-embed-text
+# 2. Pull embedding model (choose one):
+ollama pull mxbai-embed-large          # recommended: 1024-dim, beats text-embedding-3-large, ~670MB
+ollama pull snowflake-arctic-embed2    # best multilingual local option, ~670MB
+ollama pull nomic-embed-text:v1.5      # classic stable, 768-dim, ~270MB
 
-# 3. Pull LLM for Smart Extraction (choose one):
-ollama pull qwen2.5:7b    # recommended: good JSON output, ~4.7GB
-ollama pull llama3.2      # alternative: ~2GB, lighter
-ollama pull mistral       # alternative: ~4.1GB
+# 3. Pull LLM for Smart Extraction (choose one based on RAM):
+ollama pull qwen3:8b           # recommended: best JSON/structured output, ~5.2GB
+ollama pull qwen3:14b          # better quality, ~9GB, needs 16GB VRAM
+ollama pull llama4:scout       # multimodal MoE, 10M ctx, ~12GB
+ollama pull mistral-small3.2   # 24B, 128K ctx, excellent, ~15GB
+ollama pull mistral-nemo       # 12B, 128K ctx, efficient, ~7GB
 
-# 4. Verify both models are installed
+# 4. Verify models are installed
 ollama list
 
 # 5. Quick sanity check — embedding endpoint works:
 curl http://localhost:11434/v1/embeddings \
   -H "Content-Type: application/json" \
-  -d '{"model":"nomic-embed-text","input":"test"}'
-# Should return a JSON with a 768-element vector
+  -d '{"model":"mxbai-embed-large","input":"test"}'
+# Should return a JSON with a 1024-element vector
 ```
 
-**If Smart Extraction produces garbled/invalid output:** The local LLM may not support structured JSON reliably. Disable it and use simpler storage:
+**If Smart Extraction produces garbled/invalid output:** The local LLM may not support structured JSON reliably. Try `qwen3:8b` first — it has native structured output support. If still failing, disable:
 ```json
 { "smartExtraction": false }
 ```
@@ -1022,10 +1031,15 @@ Disable: `{ "smartExtraction": false }`
 
 | Provider | Model | Base URL | Dimensions | Notes |
 |----------|-------|----------|-----------|-------|
-| Jina (recommended) | `jina-embeddings-v5-text-small` | `https://api.jina.ai/v1` | 1024 | Task-aware, normalized |
-| OpenAI | `text-embedding-3-small` | `https://api.openai.com/v1` | 1536 | Widely compatible |
-| Google Gemini | `gemini-embedding-001` | `https://generativelanguage.googleapis.com/v1beta/openai/` | 3072 | High-dim |
-| Ollama (local) | `nomic-embed-text` | `http://localhost:11434/v1` | varies | Offline capable |
+| Jina (recommended) | `jina-embeddings-v5-text-small` | `https://api.jina.ai/v1` | 1024 | Latest (Feb 2026), task-aware LoRA, 32K ctx |
+| Jina (multimodal) | `jina-embeddings-v4` | `https://api.jina.ai/v1` | 1024 | Text + image, Qwen2.5-VL backbone |
+| OpenAI | `text-embedding-3-large` | `https://api.openai.com/v1` | 3072 | Best OpenAI quality (MTEB 64.6%) |
+| OpenAI | `text-embedding-3-small` | `https://api.openai.com/v1` | 1536 | Cost-efficient |
+| Google Gemini | `gemini-embedding-2-preview` | `https://generativelanguage.googleapis.com/v1beta/openai/` | 3072 | Latest (Mar 2026), multimodal, 100+ languages |
+| Google Gemini | `gemini-embedding-001` | `https://generativelanguage.googleapis.com/v1beta/openai/` | 3072 | Stable text-only |
+| Ollama (local) | `mxbai-embed-large` | `http://localhost:11434/v1` | 1024 | **Recommended local** — beats text-embedding-3-large |
+| Ollama (local) | `snowflake-arctic-embed2` | `http://localhost:11434/v1` | 1024 | Best multilingual local option |
+| Ollama (local) | `nomic-embed-text:v1.5` | `http://localhost:11434/v1` | 768 | Lightweight classic, 270MB |
 
 **Multi-key failover:** Set `apiKey` as an array for round-robin rotation on 429/503 errors.
 
@@ -1035,7 +1049,8 @@ Disable: `{ "smartExtraction": false }`
 
 | Provider | `rerankProvider` | Endpoint | Model | Notes |
 |----------|-----------------|----------|-------|-------|
-| Jina (default) | `jina` | `https://api.jina.ai/v1/rerank` | `jina-reranker-v3` | Production-grade |
+| Jina (default) | `jina` | `https://api.jina.ai/v1/rerank` | `jina-reranker-v3` | **Latest text reranker** (2025, Qwen3 backbone, 131K ctx) |
+| Jina (multimodal) | `jina` | `https://api.jina.ai/v1/rerank` | `jina-reranker-m0` | Multimodal (text+images), use when docs contain images |
 | SiliconFlow | `siliconflow` | `https://api.siliconflow.com/v1/rerank` | `BAAI/bge-reranker-v2-m3` | Free tier available |
 | Voyage AI | `voyage` | `https://api.voyageai.com/v1/rerank` | `rerank-2.5` | Sends `{model, query, documents}`, no `top_n` |
 | Pinecone | `pinecone` | `https://api.pinecone.io/rerank` | `bge-reranker-v2-m3` | Pinecone customers only |
