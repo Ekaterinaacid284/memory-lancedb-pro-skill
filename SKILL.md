@@ -711,7 +711,13 @@ Uses Jina for both embedding and reranking — best retrieval quality:
 | `enableManagementTools` | boolean | false | Register CLI management tools as agent tools |
 | `autoRecallMinLength` | number | 15 | Min prompt chars to trigger auto-recall (6 for CJK) |
 | `autoRecallMinRepeated` | number | 0 | Min turns before same memory can re-inject in same session |
-| `sessionStrategy` | string | `none` | Session pipeline: `memoryReflection` / `systemSessionMemory` / `none` |
+| `sessionStrategy` | string | `systemSessionMemory` | Session pipeline: `memoryReflection` / `systemSessionMemory` / `none` |
+| `autoRecallTopK` | number | 3 | Max memories injected per auto-recall (max 20) |
+| `autoRecallSelectionMode` | string | `mmr` | Selection algorithm: `mmr` / `legacy` / `setwise-v2` |
+| `autoRecallCategories` | array | `["preference","fact","decision","entity","other"]` | Categories eligible for auto-recall injection |
+| `autoRecallExcludeReflection` | boolean | true | Exclude reflection-type memories from auto-recall |
+| `autoRecallMaxAgeDays` | number | 30 | Max age (days) of memories considered for auto-recall |
+| `autoRecallMaxEntriesPerKey` | number | 10 | Max entries per scope key in auto-recall results |
 
 ### LLM (for Smart Extraction)
 | Field | Type | Default | Description |
@@ -728,8 +734,8 @@ Uses Jina for both embedding and reranking — best retrieval quality:
 | `bm25Weight` | number | 0.3 | Weight for BM25 full-text search |
 | `minScore` | number | 0.3 | Minimum relevance threshold |
 | `hardMinScore` | number | 0.35 | Hard cutoff post-reranking |
-| `rerank` | string | `cross-encoder` | Reranking strategy |
-| `rerankProvider` | string | `jina` | `jina` / `siliconflow` / `voyage` / `pinecone` / `dashscope` |
+| `rerank` | string | `cross-encoder` | Reranking strategy: `cross-encoder` / `lightweight` / `none` |
+| `rerankProvider` | string | `jina` | `jina` / `siliconflow` / `voyage` / `pinecone` / `vllm` (Docker Model Runner) |
 | `rerankModel` | string | `jina-reranker-v3` | Reranker model name |
 | `rerankEndpoint` | string | provider default | Reranker API URL |
 | `rerankApiKey` | string | — | Reranker API key |
@@ -750,9 +756,9 @@ Use `sessionStrategy` (top-level field) to configure the session pipeline:
 
 | Value | Behavior |
 |-------|----------|
-| `"none"` (default) | Session summaries disabled |
+| `"systemSessionMemory"` **(default)** | Built-in session memory (simpler) |
 | `"memoryReflection"` | Advanced LLM-powered reflection with inheritance/derived injection |
-| `"systemSessionMemory"` | Built-in session memory (simpler, legacy-equivalent) |
+| `"none"` | Session summaries disabled |
 
 **`memoryReflection` config** (used when `sessionStrategy: "memoryReflection"`):
 
@@ -768,6 +774,19 @@ Use `sessionStrategy` (top-level field) to configure the session pipeline:
 | `thinkLevel` | string | `medium` | Reasoning depth: `off` / `minimal` / `low` / `medium` / `high` |
 | `errorReminderMaxEntries` | number | 3 | Max error entries injected into reflection |
 | `dedupeErrorSignals` | boolean | true | Deduplicate error signals before injection |
+
+**`memoryReflection.recall` sub-object** (controls which past reflections are retrieved for injection):
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `fixed` | Recall mode: `fixed` / `dynamic` |
+| `topK` | number | 6 | Max reflection entries retrieved (max 20) |
+| `includeKinds` | array | `["invariant"]` | Which kinds to include: `invariant` / `derived` |
+| `maxAgeDays` | number | 45 | Max age of reflections to retrieve |
+| `maxEntriesPerKey` | number | 10 | Max entries per scope key |
+| `minRepeated` | number | 2 | Min times an entry must appear to be included |
+| `minScore` | number | 0.18 | Minimum relevance score (range 0–5) |
+| `minPromptLength` | number | 8 | Min prompt length to trigger recall |
 
 ### Session Memory (deprecated — legacy compat only)
 
@@ -970,7 +989,7 @@ Disable: `{ "smartExtraction": false }`
 | SiliconFlow | `siliconflow` | `https://api.siliconflow.com/v1/rerank` | `BAAI/bge-reranker-v2-m3` | Free tier available |
 | Voyage AI | `voyage` | `https://api.voyageai.com/v1/rerank` | `rerank-2.5` | Sends `{model, query, documents}`, no `top_n` |
 | Pinecone | `pinecone` | `https://api.pinecone.io/rerank` | `bge-reranker-v2-m3` | Pinecone customers only |
-| DashScope (Aliyun) | `dashscope` | `https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank` | `gte-rerank-v2` | Alibaba Cloud |
+| vLLM / Docker Model Runner | `vllm` | Custom endpoint | any compatible model | Self-hosted via Docker Model Runner |
 
 Jina key can be reused for both embedding and reranking.
 
