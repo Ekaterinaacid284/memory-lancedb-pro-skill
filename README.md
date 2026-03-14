@@ -208,6 +208,10 @@ MIT
 
 ---
 
+## Buy Me a Coffee
+
+[!["Buy Me A Coffee"](https://storage.ko-fi.com/cdn/kofi2.png?v=3)](https://ko-fi.com/aila)
+
 ## Contact
 
 <img src="assets/wechat-qrcode.jpeg" width="200" alt="WeChat QR Code" />
