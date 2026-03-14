@@ -205,3 +205,9 @@ Key specs:
 ## License
 
 MIT
+
+---
+
+## Contact
+
+<img src="assets/wechat-qrcode.jpeg" width="200" alt="WeChat QR Code" />
