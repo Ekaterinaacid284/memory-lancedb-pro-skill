@@ -414,13 +414,18 @@ Then do a quick smoke test:
 ### Install Method 1 — via OpenClaw plugin manager (recommended)
 
 ```bash
-# Install directly from npm — auto-copies to ~/.openclaw/extensions/ and enables
+# Install from npm registry (@beta tag = latest pre-release, e.g. 1.1.0-beta.8)
 openclaw plugins install memory-lancedb-pro@beta
 
-# Or install from a local clone (copies into extensions dir and enables)
+# Install stable release from npm (@latest tag, e.g. 1.0.32)
+openclaw plugins install memory-lancedb-pro
+
+# Or install from a local git clone (installs whatever branch/commit you cloned)
 git clone https://github.com/CortexReach/memory-lancedb-pro.git /tmp/memory-lancedb-pro
 openclaw plugins install /tmp/memory-lancedb-pro
 ```
+
+> **npm vs GitHub main branch:** `@beta` installs from the npm registry, not directly from GitHub. The npm beta tag may be ahead of or behind the GitHub main branch at any given time. To get the absolute latest code, clone the repo manually. To get the latest published release, use npm.
 
 Then bind the memory slot and add your config (see Configuration section below):
 ```json
