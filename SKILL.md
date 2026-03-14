@@ -65,13 +65,63 @@ Present these three plans in a clear comparison, then ask the user to pick one:
 ---
 
 After user selects a plan, ask in one message:
-1. Do you already have the required API key(s)?
+1. Please provide the required API key(s) for your chosen plan (paste directly, or say "already set as env vars")
 2. Are the env vars already set in your OpenClaw Gateway process? (If unsure, answer No)
 3. Where is your `openclaw.json`? (Skip if you want me to find it automatically)
 
 If the user already stated their provider/keys in context, skip asking and proceed.
 
-### Step 2 — Find openclaw.json
+**Do NOT proceed to Step 2 until API keys have been collected and verified (Step 2 below).**
+
+### Step 2 — Verify API Keys (MANDATORY — do not skip)
+
+**Run ALL key checks for the chosen plan before touching any config.** If any check fails, STOP and tell the user which key failed and why. Do not proceed to Step 3.
+
+**Plan A / Plan B — Jina embedding check:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  https://api.jina.ai/v1/embeddings \
+  -H "Authorization: Bearer <JINA_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"jina-embeddings-v5-text-small","input":["test"]}'
+```
+
+**Plan A / B / C — OpenAI check:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  https://api.openai.com/v1/models \
+  -H "Authorization: Bearer <OPENAI_API_KEY>"
+```
+
+**Plan B — SiliconFlow reranker check:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  https://api.siliconflow.com/v1/rerank \
+  -H "Authorization: Bearer <SILICONFLOW_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"BAAI/bge-reranker-v2-m3","query":"test","documents":["test doc"]}'
+```
+
+**Plan D — Ollama check:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/api/tags
+```
+
+**Interpret results:**
+
+| HTTP code | Meaning | Action |
+|-----------|---------|--------|
+| `200` / `201` | Key valid, quota available | ✅ Continue |
+| `401` / `403` | Invalid or expired key | ❌ STOP — ask user to check key |
+| `402` | Payment required / no credits | ❌ STOP — ask user to top up account |
+| `429` | Rate limited or quota exceeded | ❌ STOP — ask user to check billing/quota |
+| `000` / connection refused | Service unreachable | ❌ STOP — ask user to check network / Ollama running |
+
+**If any check fails:** Tell the user exactly which provider failed, the HTTP code received, and what to fix. **Do not proceed with installation until all required keys pass their checks.**
+
+If the user says keys are set as env vars in the gateway process, run checks using `${VAR_NAME}` substituted inline or ask them to paste the key temporarily for verification.
+
+### Step 3 — Find openclaw.json
 
 Check these locations in order:
 ```bash
@@ -84,7 +134,7 @@ openclaw config get --show-path 2>/dev/null || echo "not found"
 
 If not found, ask the user for the path.
 
-### Step 3 — Read current config
+### Step 4 — Read current config
 
 ```bash
 # Read and display current plugins config before changing anything
@@ -94,7 +144,7 @@ openclaw config get plugins.slots.memory 2>/dev/null
 
 **Check what already exists** — never blindly overwrite existing settings.
 
-### Step 4 — Build the merged config based on chosen plan
+### Step 5 — Build the merged config based on chosen plan
 
 Use the config block for the chosen plan. Substitute actual API keys inline if the user provided them directly; keep `${ENV_VAR}` syntax if they confirmed env vars are set in the gateway process.
 
@@ -275,7 +325,7 @@ curl http://localhost:11434/v1/embeddings \
 
 For the **`plugins.entries.memory-lancedb-pro.config`** block, merge into the existing `openclaw.json` rather than replacing the whole file. Use a targeted edit of only the memory plugin config section.
 
-### Step 5 — Apply the config
+### Step 6 — Apply the config
 
 Read the current `openclaw.json` first, then apply a surgical edit to the `plugins.entries.memory-lancedb-pro` section. Use the template that matches your installation method:
 
@@ -317,7 +367,7 @@ Both `load.paths` AND `allow` are required — workspace plugins are disabled by
 }
 ```
 
-### Step 6 — Validate and restart
+### Step 7 — Validate and restart
 
 ```bash
 openclaw config validate
@@ -329,7 +379,7 @@ Expected output confirms:
 - `memory-lancedb-pro: smart extraction enabled`
 - `memory-lancedb-pro@...: plugin registered`
 
-### Step 7 — Verify
+### Step 8 — Verify
 
 ```bash
 openclaw plugins info memory-lancedb-pro
