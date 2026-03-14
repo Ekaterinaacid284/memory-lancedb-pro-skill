@@ -496,6 +496,97 @@ Expected log output:
 
 Use **absolute paths** in `plugins.load.paths`. Add to `plugins.allow`. Bind memory slot: `plugins.slots.memory = "memory-lancedb-pro"`. Set `plugins.entries.memory-lancedb-pro.enabled: true`.
 
+### New User First-Install Checklist
+
+After the plugin starts successfully, determine which scenario applies and run the corresponding steps:
+
+---
+
+**Scenario A — Coming from built-in `memory-lancedb` plugin (most common upgrade path)**
+
+The old plugin stores data in LanceDB at `~/.openclaw/memory/lancedb`. Use the migrate command:
+
+```bash
+# 1. Check if old data exists and is readable
+openclaw memory-pro migrate check
+
+# 2. Preview what would be migrated (dry run)
+openclaw memory-pro migrate run --dry-run
+
+# 3. Run the actual migration
+openclaw memory-pro migrate run
+
+# 4. Verify migrated data
+openclaw memory-pro migrate verify
+openclaw memory-pro stats
+```
+
+If the old database is at a non-default path:
+```bash
+openclaw memory-pro migrate check --source /path/to/old/lancedb
+openclaw memory-pro migrate run --source /path/to/old/lancedb
+```
+
+---
+
+**Scenario B — Existing memories exported as JSON**
+
+If you have memories in the standard JSON export format:
+
+```bash
+# Preview import (dry run)
+openclaw memory-pro import memories.json --scope global --dry-run
+
+# Import
+openclaw memory-pro import memories.json --scope global
+```
+
+Expected JSON schema:
+```json
+{
+  "version": "1.0",
+  "memories": [
+    {
+      "text": "Memory content (required)",
+      "category": "preference|fact|decision|entity|other",
+      "importance": 0.7,
+      "timestamp": 1234567890000
+    }
+  ]
+}
+```
+
+---
+
+**Scenario C — Memories stored in Markdown files (AGENTS.md, MEMORY.md, etc.)**
+
+There is **no direct markdown import** — the import command only accepts JSON. You need to convert first.
+
+Manual conversion approach:
+1. Open the markdown file(s) containing memories
+2. For each memory entry, create a JSON object with `text`, `category`, `importance`
+3. Save as a JSON file following the schema above
+4. Run `openclaw memory-pro import`
+
+Or use `memory_store` tool directly in the agent to store individual entries one at a time:
+```
+memory_store(text="<extracted memory>", category="fact", importance=0.8)
+```
+
+> **Note:** Markdown-based memory files (MEMORY.md, AGENTS.md) are workspace context files, not the same as the LanceDB memory store. You only need to migrate them if you want that content searchable via `memory_recall`.
+
+---
+
+**Scenario D — Fresh install, no prior memories**
+
+No migration needed. Verify the plugin is working with a quick smoke test:
+```bash
+openclaw memory-pro stats     # should show 0 memories
+```
+Then trigger a conversation — `autoCapture` will start storing memories automatically.
+
+---
+
 ### Upgrading plugin code vs. data
 
 **Command distinction (important):**
