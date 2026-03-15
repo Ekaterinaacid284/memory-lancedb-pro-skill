@@ -24,8 +24,13 @@ When installed, Claude Code can:
 
 ### Prerequisites
 
+**For Claude Code users:**
 - [Claude Code](https://claude.ai/code) CLI installed
-- Access to an [OpenClaw](https://openclaw.ai) gateway
+- [memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) plugin configured as an MCP server
+
+**For OpenClaw users:**
+- [OpenClaw](https://openclaw.ai) gateway running
+- `memory-lancedb-pro` plugin installed via `openclaw plugins install memory-lancedb-pro@beta`
 
 ### Install the skill
 
