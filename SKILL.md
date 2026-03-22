@@ -956,12 +956,6 @@ Uses Jina for both embedding and reranking — best retrieval quality:
 | `autoRecallMinLength` | number | 15 | Min prompt chars to trigger auto-recall (6 for CJK) |
 | `autoRecallMinRepeated` | number | 0 | Min turns before same memory can re-inject in same session |
 | `sessionStrategy` | string | `systemSessionMemory` | Session pipeline: `memoryReflection` / `systemSessionMemory` / `none` |
-| `autoRecallTopK` | number | 3 | Max memories injected per auto-recall (max 20) |
-| `autoRecallSelectionMode` | string | `mmr` | Selection algorithm: `mmr` / `legacy` / `setwise-v2` |
-| `autoRecallCategories` | array | `["preference","fact","decision","entity","other"]` | Categories eligible for auto-recall injection |
-| `autoRecallExcludeReflection` | boolean | true | Exclude reflection-type memories from auto-recall |
-| `autoRecallMaxAgeDays` | number | 30 | Max age (days) of memories considered for auto-recall |
-| `autoRecallMaxEntriesPerKey` | number | 10 | Max entries per scope key in auto-recall results |
 
 ### LLM (for Smart Extraction)
 | Field | Type | Default | Description |
